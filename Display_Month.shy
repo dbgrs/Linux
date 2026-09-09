@@ -1,5 +1,0 @@
-#!/bin/bash
-
-month=$(date)
-
-echo "Current Month : $month"
