@@ -14,11 +14,10 @@ echo " 9. Display all system users"
 echo "10. Check whether user exists"
 echo "11. Display currently logged-in users"
 echo "12. Change a user's login shell"
-echo "13. Change a user's home directory"
-echo "14. Set account expiration date"
-echo "15. Display account aging information"
-echo "16. Remove a user along with their home directory"
-echo "17. Exit"
+echo "13. Set account expiration date"
+echo "14. Display account aging information"
+echo "15. Remove a user along with their home directory"
+echo "16. Exit"
 echo
 read -p "Enter choice to perform operation : " choice
 echo
@@ -172,8 +171,144 @@ case "$choice" in
       who
       ;;
    12)
-      
+     read -p "Enter username who's directory you want to change : "  TARGET_USER
+     read -p "Enter new shell path : " NEW_SHELL
+
+      if [ "$#" -ne 2 ]; then
+      echo "Usage: $0 <username> <shell>"
+      echo "Example: $0 user2 /bin/bash"
+      exit 1
+      fi
+
+      TRARGET_USER="$1"
+      NEW_SHELL="$2"
+
+      if ! grep -Fxq "$NEW_SHELL" /etc/shells; then
+      echo "Error: '$NEW_SHELL' is not listed in /etc/shells."
+      echo "Available shells:"
+      cat /etc/shells
+      exit 1
+      fi
+
+      if usermod -s "$NEW_SHELL" "$TARGET_USER"; then
+      echo "Login shell changed successfully!"
+      echo "Username: $TARGET_USER"
+      echo "New shell: $NEW_SHELL"
+      else
+      echo "Error: Failed to change the login shell."
+      exit 1
+      fi
       ;;
+
+   13)
+      read -p "Enter username to set account expiration date : " TARGET_USER
+      read -p "Enter expiration date : " EXPIRY _DATE 
+
+     if [ "$#" -ne 2 ]; then
+     echo "Usage: $0 <username> <YYYY-MM-DD>"
+     echo "Example: $0 user2 2026-12-31"
+     exit 1
+    fi
+
+    TARGET_USER="$1"
+    EXPIRY_DATE="$2"
+
+
+    if ! id "$TARGET_USER" &>/dev/null; then
+    echo "Error: User '$TARGET_USER' does not exist."
+    exit 1
+    fi
+
+
+    if ! [[ "$EXPIRY_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] ||
+    ! date -d "$EXPIRY_DATE" '+%F' 2>/dev/null |
+    grep -Fxq "$EXPIRY_DATE"; then
+    echo "Error: Invalid date. Use YYYY-MM-DD format."
+    exit 1
+    fi
+
+
+    if chage -E "$EXPIRY_DATE" "$TARGET_USER"; then
+    echo "Account expiration date set successfully!"
+    echo "Username: $TARGET_USER"
+    echo "Expiration date: $EXPIRY_DATE"
+    else
+    echo "Error: Failed to set account expiration date."
+    exit 1
+    fi
+
+
+     echo
+     echo "Account expiration details:"
+     chage -l "$TARGET_USER"
+     ;;
+  14)
+     read -p "Enter user name to view aging information : " TARGET_USER
+     if [ "$#" -ne 1 ]; then
+     echo "Usage: $0 <username>"
+     echo "Example: $0 user2"
+     exit 1
+     fi
+
+     TARGET_USER="$1"
+
+     if ! id "$TARGET_USER" &>/dev/null; then
+     echo "Error: User '$TARGET_USER' does not exist."
+     exit 1
+     fi
+
+     echo 
+     echo " Account Aging Information"
+     echo "--------------------------------------"
+     echo "Username: $TARGET_USER"
+     echo
+
+     if ! chage -l "$TARGET_USER"; then
+     echo "Error: Unable to retrieve account aging information."
+     exit 1
+     fi
+     ;;
+  15)
+     read -p "Enter username to delete user : " TARGET_USER
+     if [ "$#" -ne 1 ]; then
+     echo "Usage: $0 <username>"
+     echo "Example: $0 user2"
+     exit 1
+     fi
+
+    TARGET_USER="$1"
+
+
+    if [ "$TARGET_USER" = "root" ]; then
+    echo "Error: The root account cannot be removed by this script."
+    exit 1
+    fi
+
+    if ! id "$TARGET_USER" &>/dev/null; then
+    echo "Error: User '$TARGET_USER' does not exist."
+    exit 1
+    fi
+
+
+     echo "WARNING: This will permanently delete user '$TARGET_USER'"
+     echo "and their home directory and mail spool."
+     read -r -p "Are you sure? (yes/no): " CONFIRM
+
+     if [ "$CONFIRM" != "yes" ]; then
+     echo "User removal cancelled."
+     exit 0
+     fi
+
+
+     if userdel -r "$TARGET_USER"; then
+     echo "User '$TARGET_USER' and their home directory were removed successfully."
+     else
+     echo "Error: Failed to remove user '$TARGET_USER'."
+     echo "The user may have active processes or other account-related issues."
+     exit 1
+     fi
+
+     ;;
 
 *)
   echo "Enter Valid Choice"
