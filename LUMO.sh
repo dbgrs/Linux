@@ -79,9 +79,10 @@ case "$choice" in
 	echo "2) Login username"
 	echo "3) Add to a new group"
 	echo "4) Change home directory"
+	echo "5) Exit"
 	echo "--------------------------------------------------"
 	echo
-	read -p "Select an option (1-4): " OPTION
+	read -p "Select an option (1-5): " OPTION
 	echo
 	case $OPTION in
 		1)
@@ -117,7 +118,9 @@ case "$choice" in
 		 usermod -d "$NEW_DIR" -m "$TARGET_USER"
 		 echo "Home directory moved to : $NEW_DIR"
 		 ;;
-
+              5)
+                bash LUMO.sh
+	        ;;
 	*)
 	  echo "Invalid Option Selected."
 	  exit 1
@@ -174,23 +177,14 @@ case "$choice" in
      read -p "Enter username who's directory you want to change : "  TARGET_USER
      read -p "Enter new shell path : " NEW_SHELL
 
-      if [ "$#" -ne 2 ]; then
-      echo "Usage: $0 <username> <shell>"
-      echo "Example: $0 user2 /bin/bash"
-      exit 1
-      fi
-
-      TRARGET_USER="$1"
-      NEW_SHELL="$2"
-
-      if ! grep -Fxq "$NEW_SHELL" /etc/shells; then
+      if ! grep -Fxq $NEW_SHELL /etc/shells; then
       echo "Error: '$NEW_SHELL' is not listed in /etc/shells."
       echo "Available shells:"
       cat /etc/shells
       exit 1
       fi
 
-      if usermod -s "$NEW_SHELL" "$TARGET_USER"; then
+      if usermod -s $NEW_SHELL $TARGET_USER; then
       echo "Login shell changed successfully!"
       echo "Username: $TARGET_USER"
       echo "New shell: $NEW_SHELL"
@@ -204,55 +198,39 @@ case "$choice" in
       read -p "Enter username to set account expiration date : " TARGET_USER
       read -p "Enter expiration date : " EXPIRY _DATE 
 
-     if [ "$#" -ne 2 ]; then
-     echo "Usage: $0 <username> <YYYY-MM-DD>"
-     echo "Example: $0 user2 2026-12-31"
-     exit 1
-    fi
 
-    TARGET_USER="$1"
-    EXPIRY_DATE="$2"
+      if ! id $TARGET_USER &>/dev/null; then
+      echo "Error: User '$TARGET_USER' does not exist."
+      exit 1
+      fi
 
 
-    if ! id "$TARGET_USER" &>/dev/null; then
-    echo "Error: User '$TARGET_USER' does not exist."
-    exit 1
-    fi
+      if ! [[ $EXPIRY_DATE =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] ||
+      ! date -d $EXPIRY_DATE '+%F' 2>/dev/null |
+      grep -Fxq $EXPIRY_DATE; then
+      echo "Error: Invalid date. Use YYYY-MM-DD format."
+      exit 1
+      fi
 
 
-    if ! [[ "$EXPIRY_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] ||
-    ! date -d "$EXPIRY_DATE" '+%F' 2>/dev/null |
-    grep -Fxq "$EXPIRY_DATE"; then
-    echo "Error: Invalid date. Use YYYY-MM-DD format."
-    exit 1
-    fi
-
-
-    if chage -E "$EXPIRY_DATE" "$TARGET_USER"; then
-    echo "Account expiration date set successfully!"
-    echo "Username: $TARGET_USER"
-    echo "Expiration date: $EXPIRY_DATE"
-    else
-    echo "Error: Failed to set account expiration date."
-    exit 1
-    fi
+      if chage -E $EXPIRY_DATE $TARGET_USER; then
+      echo "Account expiration date set successfully!"
+      echo "Username: $TARGET_USER"
+      echo "Expiration date: $EXPIRY_DATE"
+      else
+      echo "Error: Failed to set account expiration date."
+      exit 1
+      fi
 
 
      echo
      echo "Account expiration details:"
-     chage -l "$TARGET_USER"
+     chage -l $TARGET_USER
      ;;
   14)
      read -p "Enter user name to view aging information : " TARGET_USER
-     if [ "$#" -ne 1 ]; then
-     echo "Usage: $0 <username>"
-     echo "Example: $0 user2"
-     exit 1
-     fi
 
-     TARGET_USER="$1"
-
-     if ! id "$TARGET_USER" &>/dev/null; then
+     if ! id $TARGET_USER &>/dev/null; then
      echo "Error: User '$TARGET_USER' does not exist."
      exit 1
      fi
@@ -263,59 +241,51 @@ case "$choice" in
      echo "Username: $TARGET_USER"
      echo
 
-     if ! chage -l "$TARGET_USER"; then
+     if ! chage -l $TARGET_USER; then
      echo "Error: Unable to retrieve account aging information."
      exit 1
      fi
      ;;
   15)
      read -p "Enter username to delete user : " TARGET_USER
-     if [ "$#" -ne 1 ]; then
-     echo "Usage: $0 <username>"
-     echo "Example: $0 user2"
+     
+
+     if [ $TARGET_USER = "root" ]; then
+     echo "Error: The root account cannot be removed by this script."
      exit 1
      fi
 
-    TARGET_USER="$1"
-
-
-    if [ "$TARGET_USER" = "root" ]; then
-    echo "Error: The root account cannot be removed by this script."
-    exit 1
-    fi
-
-    if ! id "$TARGET_USER" &>/dev/null; then
-    echo "Error: User '$TARGET_USER' does not exist."
-    exit 1
-    fi
+     if ! id $TARGET_USER &>/dev/null; then
+     echo "Error: User '$TARGET_USER' does not exist."
+     exit 1
+     fi
 
 
      echo "WARNING: This will permanently delete user '$TARGET_USER'"
      echo "and their home directory and mail spool."
      read -r -p "Are you sure? (yes/no): " CONFIRM
 
-     if [ "$CONFIRM" != "yes" ]; then
+     if [ $CONFIRM != "yes" ]; then
      echo "User removal cancelled."
      exit 0
      fi
 
 
-     if userdel -r "$TARGET_USER"; then
+     if userdel -r $TARGET_USER; then
      echo "User '$TARGET_USER' and their home directory were removed successfully."
      else
      echo "Error: Failed to remove user '$TARGET_USER'."
      echo "The user may have active processes or other account-related issues."
      exit 1
      fi
-
      ;;
-
+  16)
+     exit
+     ;;
 *)
   echo "Enter Valid Choice"
   exit 1
   ;;
 esac
-
-
 
 
